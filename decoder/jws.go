@@ -51,6 +51,12 @@ func (d *jwsDecoder) Decode(ctx context.Context, rawJws string) (*Token, error) 
 		Expiration: jwtToken.Expiration(),
 		Claims:     make(map[string]string),
 	}
+
+	token.AllClaims, err = jwtToken.AsMap(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	for key, destKey := range d.claimMapping {
 		if value, ok := jwtToken.Get(key); ok {
 			if strVal, ok := value.(string); ok {

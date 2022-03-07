@@ -13,6 +13,7 @@ type TokenDecoder interface {
 
 // Token contains the expiration time and a remapped map of claims from the JWT Token
 type Token struct {
+	AllClaims  map[string]interface{}
 	Claims     map[string]string
 	Expiration time.Time
 }

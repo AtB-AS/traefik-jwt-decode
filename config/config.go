@@ -31,6 +31,8 @@ const (
 	ClaimMappingFileDefault     = "config.json"
 	AuthHeaderEnv               = "AUTH_HEADER_KEY"
 	AuthHeaderDefault           = "Authorization"
+	TokenValidatedClaimsEnv     = "TOKEN_VALIDATED_CLAIMS_HEADER_KEY"
+	TokenValidatedClaimsDefault = "X-Endpoint-API-UserInfo"
 	TokenValidatedHeaderEnv     = "TOKEN_VALIDATED_HEADER_KEY"
 	TokenValidatedHeaderDefault = "jwt-token-validated"
 	PortEnv                     = "PORT"
@@ -53,6 +55,7 @@ func NewConfig() *Config {
 	c.forceJwksOnStart = withDefault(ForceJwksOnStart, ForceJwksOnStartDefault)
 	c.claimMappingFilePath = withDefault(ClaimMappingFileEnv, ClaimMappingFileDefault)
 	c.authHeader = withDefault(AuthHeaderEnv, AuthHeaderDefault)
+	c.tokenValidatedClaims = withDefault(TokenValidatedClaimsEnv, TokenValidatedClaimsDefault)
 	c.tokenValidatedHeader = withDefault(TokenValidatedHeaderEnv, TokenValidatedHeaderDefault)
 	c.port = withDefault(PortEnv, PortDefault)
 	c.logLevel = withDefault(LogLevelEnv, LogLevelDefault)
@@ -71,6 +74,7 @@ type Config struct {
 	claimMappingFilePath envVar
 	authHeader           envVar
 	tokenValidatedHeader envVar
+	tokenValidatedClaims envVar
 	port                 envVar
 	logLevel             envVar
 	logType              envVar
@@ -130,7 +134,7 @@ func (c *Config) getServer(r *prom.Registry) *decoder.Server {
 	} else {
 		dec = jwsDec
 	}
-	return decoder.NewServer(dec, c.authHeader.get(), c.tokenValidatedHeader.get())
+	return decoder.NewServer(dec, c.authHeader.get(), c.tokenValidatedHeader.get(), c.tokenValidatedClaims.get())
 }
 
 func (c *Config) getLogger() (logger zerolog.Logger) {

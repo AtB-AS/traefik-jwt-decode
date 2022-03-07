@@ -1,6 +1,8 @@
 package decoder
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -17,12 +19,13 @@ type Server struct {
 	decoder                 TokenDecoder
 	authHeaderKey           string
 	tokenValidatedHeaderKey string
+	tokenValidatedClaimsKey string
 }
 
 // NewServer returns a new server that will decode the header with key authHeaderKey
 // with the given TokenDecoder decoder.
-func NewServer(decoder TokenDecoder, authHeaderKey, tokenValidatedHeaderKey string) *Server {
-	return &Server{decoder: decoder, authHeaderKey: authHeaderKey, tokenValidatedHeaderKey: tokenValidatedHeaderKey}
+func NewServer(decoder TokenDecoder, authHeaderKey, tokenValidatedHeaderKey, claimsHeaderKey string) *Server {
+	return &Server{decoder: decoder, authHeaderKey: authHeaderKey, tokenValidatedHeaderKey: tokenValidatedHeaderKey, tokenValidatedClaimsKey: claimsHeaderKey}
 }
 
 // DecodeToken http handler
@@ -52,6 +55,14 @@ func (s *Server) DecodeToken(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set(k, v)
 		le.Str(k, v)
 	}
+	claims, err := json.Marshal(t.AllClaims)
+	if err != nil {
+		log.Warn().Err(err).Int(statusKey, http.StatusUnauthorized).Msg("unable to validate token")
+		rw.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	rw.Header().Set(s.tokenValidatedClaimsKey, base64.URLEncoding.EncodeToString(claims))
 	rw.Header().Set(s.tokenValidatedHeaderKey, "true")
 	le.Str(s.tokenValidatedHeaderKey, "true")
 	le.Int(statusKey, http.StatusOK).Msg("ok")
