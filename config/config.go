@@ -35,6 +35,8 @@ const (
 	TokenValidatedClaimsDefault = "X-Endpoint-API-UserInfo"
 	TokenValidatedHeaderEnv     = "TOKEN_VALIDATED_HEADER_KEY"
 	TokenValidatedHeaderDefault = "jwt-token-validated"
+	AuthHeaderRequired          = "AUTH_HEADER_REQUIRED"
+	AuthHeaderRequiredDefault   = "false"
 	PortEnv                     = "PORT"
 	PortDefault                 = "8080"
 	LogLevelEnv                 = "LOG_LEVEL"
@@ -57,6 +59,7 @@ func NewConfig() *Config {
 	c.authHeader = withDefault(AuthHeaderEnv, AuthHeaderDefault)
 	c.tokenValidatedClaims = withDefault(TokenValidatedClaimsEnv, TokenValidatedClaimsDefault)
 	c.tokenValidatedHeader = withDefault(TokenValidatedHeaderEnv, TokenValidatedHeaderDefault)
+	c.authHeaderRequired = withDefault(AuthHeaderRequired, AuthHeaderRequiredDefault)
 	c.port = withDefault(PortEnv, PortDefault)
 	c.logLevel = withDefault(LogLevelEnv, LogLevelDefault)
 	c.logType = withDefault(LogTypeEnv, LogTypeDefault)
@@ -75,6 +78,7 @@ type Config struct {
 	authHeader           envVar
 	tokenValidatedHeader envVar
 	tokenValidatedClaims envVar
+	authHeaderRequired   envVar
 	port                 envVar
 	logLevel             envVar
 	logType              envVar
@@ -84,6 +88,12 @@ type Config struct {
 	keyCost              int64
 }
 
+func (c *Config) PingHandler(rw http.ResponseWriter, r *http.Request) {
+	log.Debug().Msg("Ping OK")
+	rw.WriteHeader(http.StatusOK)
+	return
+}
+
 // RunServer starts a server from the config
 func (c *Config) RunServer() (chan error, net.Listener) {
 	logger := c.getLogger()
@@ -91,6 +101,7 @@ func (c *Config) RunServer() (chan error, net.Listener) {
 	registry := prom.NewRegistry()
 	server := c.getServer(registry)
 	var handler http.HandlerFunc = server.DecodeToken
+	var pingHandler http.HandlerFunc = c.PingHandler
 	histogramMw := histogramMiddleware(registry)
 	loggingMiddleWare := hlog.NewHandler(logger)
 	serve := fmt.Sprintf(":%s", c.port.get())
@@ -103,6 +114,7 @@ func (c *Config) RunServer() (chan error, net.Listener) {
 		srv := &http.Server{}
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
+		mux.Handle("/ping", pingHandler)
 		mux.Handle("/", histogramMw(loggingMiddleWare(handler)))
 		srv.Handler = mux
 		done <- srv.Serve(listener)
@@ -134,7 +146,7 @@ func (c *Config) getServer(r *prom.Registry) *decoder.Server {
 	} else {
 		dec = jwsDec
 	}
-	return decoder.NewServer(dec, c.authHeader.get(), c.tokenValidatedHeader.get(), c.tokenValidatedClaims.get())
+	return decoder.NewServer(dec, c.authHeader.get(), c.tokenValidatedHeader.get(), c.tokenValidatedClaims.get(), c.authHeaderRequired.getBool())
 }
 
 func (c *Config) getLogger() (logger zerolog.Logger) {
