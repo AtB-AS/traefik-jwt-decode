@@ -1,12 +1,14 @@
 package config_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -28,6 +30,55 @@ var (
 		"claim:3": "claimHeader3",
 	}
 )
+
+func TestAllValidatedClaims(t *testing.T) {
+	os.Clearenv()
+	tc := dt.NewTest()
+	defaultEnv(tc)
+	os.Setenv(c.TokenValidatedClaimsEnv, "x-bar")
+
+	claims := map[string]interface{}{
+		"abt_id": "abc",
+		// float64 because JSON is JSON, and we use it for comparison further
+		// down
+		"customer_number": float64(123),
+	}
+
+	conf := c.NewConfig()
+	doneChan, l := conf.RunServer()
+	port := l.Addr().(*net.TCPAddr).Port
+	token := tc.NewValidToken(claims)
+	req, _ := http.NewRequest("GET", fmt.Sprintf("http://localhost:%d", port), nil)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	resp, err := http.DefaultClient.Do(req)
+	dt.HandleByPanic(err)
+	err = l.Close()
+	dt.HandleByPanic(err)
+	<-doneChan
+
+	got, err := base64.StdEncoding.DecodeString(resp.Header.Get("x-bar"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gotMap := make(map[string]interface{}, 2)
+	if err := json.Unmarshal(got, &gotMap); err != nil {
+		t.Fatal(err)
+	}
+
+	for k, v := range claims {
+		var found bool
+		for kk, vv := range gotMap {
+			if kk == k && reflect.DeepEqual(v, vv) {
+				found = true
+			}
+		}
+
+		if !found {
+			t.Errorf("expected to find key-value %s:%v", k, v)
+		}
+	}
+}
 
 func TestEnvClaimMappingsConfiguration(t *testing.T) {
 	os.Clearenv()

@@ -26,7 +26,7 @@ type Server struct {
 // NewServer returns a new server that will decode the header with key authHeaderKey
 // with the given TokenDecoder decoder.
 func NewServer(decoder TokenDecoder, authHeaderKey, tokenValidatedHeaderKey, claimsHeaderKey string, authHeaderRequired bool) *Server {
-	return &Server{decoder: decoder, authHeaderKey: authHeaderKey, tokenValidatedHeaderKey: tokenValidatedHeaderKey, authHeaderRequired: authHeaderRequired}
+	return &Server{decoder: decoder, authHeaderKey: authHeaderKey, tokenValidatedHeaderKey: tokenValidatedHeaderKey, tokenValidatedClaimsKey: claimsHeaderKey, authHeaderRequired: authHeaderRequired}
 }
 
 // DecodeToken http handler
