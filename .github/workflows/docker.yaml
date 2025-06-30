@@ -12,5 +12,6 @@ jobs:
     with:
       image: gcr.io/atb-mobility-platform/jwt-decode
       dockerfile: _docker/Dockerfile
+      deploy: false
     secrets:
       github_pat: ${{ secrets.GH_PAT }}
